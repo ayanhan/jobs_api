@@ -1,17 +1,61 @@
+const Job = require("../models/Job");
+const { StatusCodes } = require("http-status-codes");
+const { BadRequestError, NotFoundError } = require("../errors");
+
 const getAllJobs = async (req, res) => {
-  res.send("getAllJobs");
+  const jobs = await Job.find({ createdBy: req.user.userId }).sort("createdAt");
+  res.status(StatusCodes.OK).json({ jobs, count: jobs.length });
 };
 const getJob = async (req, res) => {
-  res.send("get Job");
+  const {
+    user: { userId },
+    params: { id: jobId },
+  } = req;
+  const job = await Job.findOne({ _id: jobId, createdBy: userId });
+
+  if (!job) {
+    throw new NotFoundError("Not job is this ID");
+  }
+  res.status(StatusCodes.OK).json({ job });
 };
 const createJob = async (req, res) => {
-  res.json ("createJob");
+  req.body.createdBy = req.user.userId;
+  const job = await Job.create(req.body);
+  res.status(StatusCodes.CREATED).json({});
 };
 const updateJob = async (req, res) => {
-  res.send("updateJob");
+  const {
+    body: { company, position },
+    user: { userId },
+    params: { id: jobId },
+  } = req;
+
+  if (company === "" || position === "") {
+    throw new BadRequestError("Company or position fields can not be empty");
+  }
+
+  const job = await Job.findByIdAndUpdate(
+    { _id: jobId, createdBy: userId },
+    req.body,
+    { new: true, runValidators: true }
+  );
+
+  if (!job) {
+    throw new NotFoundError("Not job is this ID");
+  }
+  res.status(StatusCodes.OK).json({ job });
 };
 const deleteJob = async (req, res) => {
-  res.send("deleteJob");
+  const {
+    user: { userId },
+    params: { id: jobId },
+  } = req;
+
+  const job = await Job.findByIdAndDelete({ _id: jobId, createdBy: userId });
+  if (!job) {
+    throw new NotFoundError("Not job is this ID");
+  }
+  res.status(StatusCodes.OK).send("Job deleted");
 };
 
 module.exports = {
@@ -20,4 +64,4 @@ module.exports = {
   createJob,
   updateJob,
   deleteJob,
- };
+};
